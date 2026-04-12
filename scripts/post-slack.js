@@ -1,7 +1,8 @@
 /**
- * post-slack.js
- * Slack Bot Token + @slack/web-api で
- * テキストサマリー投稿 → プロジェクトカード画像を1枚ずつアップロード
+ * post-slack.js — Phase 1（テキスト投稿専用）
+ *
+ * スプレッドシートのデータをもとに、Slackへテキストで週次レポートを投稿する。
+ * 画像生成（Playwright）は Phase 2 以降で追加する。
  *
  * 必要な環境変数:
  *   SLACK_BOT_TOKEN   — Slack Bot の OAuth トークン（xoxb-...）
@@ -9,20 +10,19 @@
  */
 
 import 'dotenv/config';
-import { readFileSync, existsSync, readdirSync } from 'fs';
-import { basename, extname } from 'path';
+import { readFileSync, existsSync } from 'fs';
 import { WebClient } from '@slack/web-api';
 
 // ── 環境変数チェック ──────────────────────────────────────────────
 const BOT_TOKEN = process.env.SLACK_BOT_TOKEN;
 const CHANNEL_ID = process.env.SLACK_CHANNEL_ID;
 
-if (!BOT_TOKEN || BOT_TOKEN.includes('xoxb-ここに')) {
-  console.error('❌ .env の SLACK_BOT_TOKEN が設定されていません。README.md を確認してください。');
+if (!BOT_TOKEN) {
+  console.error('❌ SLACK_BOT_TOKEN が設定されていません。');
   process.exit(1);
 }
-if (!CHANNEL_ID || CHANNEL_ID.includes('ここに')) {
-  console.error('❌ .env の SLACK_CHANNEL_ID が設定されていません。');
+if (!CHANNEL_ID) {
+  console.error('❌ SLACK_CHANNEL_ID が設定されていません。');
   process.exit(1);
 }
 
@@ -33,21 +33,13 @@ if (!existsSync('output/data.json')) {
 }
 
 const { projects } = JSON.parse(readFileSync('output/data.json', 'utf-8'));
-const dashUrl = existsSync('output/url.txt') ? readFileSync('output/url.txt', 'utf-8').trim() : null;
-
-const SCREENSHOT_DIR = 'output/screenshots';
-if (!existsSync(SCREENSHOT_DIR)) {
-  console.error('❌ output/screenshots/ が見つかりません。先に screenshot.js を実行してください。');
-  process.exit(1);
-}
 
 // ── ヘルパー ─────────────────────────────────────────────────────
 function statusEmoji(s) {
-  return s === '順調' ? ':large_green_circle:' : s === '停滞' || s === '注意' ? ':large_yellow_circle:' : s === '危険' ? ':red_circle:' : ':white_circle:';
-}
-
-function sanitizeFilename(name) {
-  return name.replace(/[\\/:*?"<>|]/g, '_');
+  if (s === '順調') return ':large_green_circle:';
+  if (s === '危険') return ':red_circle:';
+  if (s === '停滞' || s === '注意') return ':large_yellow_circle:';
+  return ':white_circle:';
 }
 
 // 危険 → 停滞 → 順調 の順にソート
@@ -64,18 +56,17 @@ projects.forEach(p => {
 });
 
 const today = new Date().toLocaleDateString('ja-JP', {
-  year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
+  year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
+  timeZone: 'Asia/Tokyo'
 });
-const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 const hasDanger = counts['危険'] > 0;
+const overallIcon = hasDanger ? ':rotating_light:' : counts['停滞'] > 0 ? ':warning:' : ':white_check_mark:';
 
 // ── Slack クライアント初期化 ──────────────────────────────────────
 const slack = new WebClient(BOT_TOKEN);
 
-// ── Step 1: テキストサマリーを投稿 ───────────────────────────────
+// ── サマリーを投稿 ────────────────────────────────────────────────
 console.log('📨 Slack にサマリーを投稿中...');
-
-const overallIcon = hasDanger ? ':rotating_light:' : counts['停滞'] + counts['注意'] > 0 ? ':warning:' : ':white_check_mark:';
 
 const summaryRes = await slack.chat.postMessage({
   channel: CHANNEL_ID,
@@ -83,25 +74,18 @@ const summaryRes = await slack.chat.postMessage({
   blocks: [
     {
       type: 'header',
-      text: { type: 'plain_text', text: `週次進捗レポート — ${today}` }
+      text: { type: 'plain_text', text: `週次進捗レポート — ${today}`, emoji: true }
     },
     {
       type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: [
-          `*サマリー*`,
-          `:large_green_circle: 順調 *${counts['順調']}件*`,
-          `:large_yellow_circle: 停滞 *${counts['停滞']}件*`,
-          `:red_circle: 危険 *${counts['危険']}件*`,
-          ...(dashUrl ? [`\n*詳細ダッシュボード:* ${dashUrl}`] : []),
-        ].join('　')
-      }
+      fields: [
+        { type: 'mrkdwn', text: `:large_green_circle: 順調　*${counts['順調']}件*` },
+        { type: 'mrkdwn', text: `:large_yellow_circle: 停滞　*${counts['停滞']}件*` },
+        { type: 'mrkdwn', text: `:red_circle: 危険　*${counts['危険']}件*` },
+        { type: 'mrkdwn', text: `全案件　*${projects.length}件*` },
+      ]
     },
-    {
-      type: 'context',
-      elements: [{ type: 'mrkdwn', text: '各プロジェクトの詳細は下の画像をご確認ください。' }]
-    }
+    { type: 'divider' }
   ]
 });
 
@@ -111,36 +95,27 @@ if (!summaryRes.ok) {
 }
 console.log('   ✅ サマリー投稿完了');
 
-// ── Step 2: プロジェクトカード画像を1枚ずつアップロード ─────────
-console.log(`\n🖼  ${sorted.length} 件のカード画像を投稿中...`);
+// ── プロジェクトごとの詳細を投稿 ─────────────────────────────────
+console.log(`\n📋 ${sorted.length} 件のプロジェクト詳細を投稿中...`);
 
-for (const project of sorted) {
-  const safeName = sanitizeFilename(project.project);
-  const imgPath = `${SCREENSHOT_DIR}/${safeName}.png`;
-
-  if (!existsSync(imgPath)) {
-    console.warn(`   ⚠ スクリーンショットが見つかりません（スキップ）: ${imgPath}`);
-    continue;
-  }
-
-  const icon = project.status === '順調' ? '🟢' : project.status === '危険' ? '🔴' : '🟡';
-  const initialComment = `${icon} *${project.project}*（担当: ${project.person}）`;
+for (const p of sorted) {
+  const icon = statusEmoji(p.status);
+  const lines = [
+    `${icon} *${p.project}*（担当: ${p.person || '未入力'}）`,
+    `状況: ${p.status || '未入力'}　週次: ${p.weeklyStatus || '未入力'}`,
+  ];
+  if (p.weeklyTask) lines.push(`✅ 今週: ${p.weeklyTask}`);
+  if (p.issues)    lines.push(`⚠ 課題: ${p.issues}`);
+  if (p.nextWeek)  lines.push(`→ 来週: ${p.nextWeek}`);
 
   try {
-    const uploadRes = await slack.filesUploadV2({
-      channel_id: CHANNEL_ID,
-      filename: `${safeName}_進捗_${dateStr}.png`,
-      file: readFileSync(imgPath),
-      initial_comment: initialComment,
+    await slack.chat.postMessage({
+      channel: CHANNEL_ID,
+      text: lines.join('\n'),
     });
-
-    if (uploadRes.ok) {
-      console.log(`   ✅ ${project.project}`);
-    } else {
-      console.error(`   ❌ アップロード失敗 (${project.project}): ${uploadRes.error}`);
-    }
+    console.log(`   ✅ ${p.project}`);
   } catch (err) {
-    console.error(`   ❌ エラー (${project.project}): ${err.message}`);
+    console.error(`   ❌ エラー (${p.project}): ${err.message}`);
   }
 }
 
