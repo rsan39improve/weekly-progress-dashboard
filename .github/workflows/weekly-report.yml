@@ -1,0 +1,46 @@
+name: 週次進捗レポート自動投稿
+
+on:
+  # 毎週月曜日 9:00 JST（= UTC 0:00）に自動実行
+  schedule:
+    - cron: '0 0 * * 1'
+
+  # 手動でも実行できるようにする（テスト用）
+  workflow_dispatch:
+
+jobs:
+  post-report:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. コードをダウンロード
+      - name: コードを取得
+        uses: actions/checkout@v4
+
+      # 2. Node.js をセットアップ
+      - name: Node.js セットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 3. 依存パッケージをインストール
+      - name: パッケージインストール
+        run: npm ci
+
+      # 4. スプレッドシートからデータ取得
+      - name: データ取得
+        env:
+          GAS_URL: ${{ secrets.GAS_URL }}
+        run: node scripts/fetch-sheets.js
+
+      # 5. ダッシュボードHTML生成
+      - name: ダッシュボード生成
+        run: node scripts/generate-dashboard.js
+
+      # 6. Slackに投稿
+      - name: Slack投稿
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+        run: node scripts/post-slack.js
