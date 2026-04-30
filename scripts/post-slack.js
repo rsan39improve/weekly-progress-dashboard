@@ -1,8 +1,8 @@
 /**
- * post-slack.js — Phase 1（テキスト投稿専用）
+ * post-slack.js — Phase 2（画像投稿）
  *
- * スプレッドシートのデータをもとに、Slackへテキストで週次レポートを投稿する。
- * 画像生成（Playwright）は Phase 2 以降で追加する。
+ * スプレッドシートのデータをもとに、プロジェクトカードのスクリーンショット画像を
+ * Slackにアップロードして週次レポートを投稿する。
  *
  * 必要な環境変数:
  *   SLACK_BOT_TOKEN   — Slack Bot の OAuth トークン（xoxb-...）
@@ -10,7 +10,7 @@
  */
 
 import 'dotenv/config';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, readdirSync } from 'fs';
 import { WebClient } from '@slack/web-api';
 
 // ── 環境変数チェック ──────────────────────────────────────────────
@@ -42,6 +42,10 @@ function statusEmoji(s) {
   return ':white_circle:';
 }
 
+function sanitizeFilename(name) {
+  return name.replace(/[\\/:*?"<>|]/g, '_');
+}
+
 // 危険 → 停滞 → 順調 の順にソート
 const sorted = [...projects].sort((a, b) => {
   const order = { 危険: 0, 停滞: 1, 注意: 1, 順調: 2 };
@@ -61,6 +65,14 @@ const today = new Date().toLocaleDateString('ja-JP', {
 });
 const hasDanger = counts['危険'] > 0;
 const overallIcon = hasDanger ? ':rotating_light:' : counts['停滞'] > 0 ? ':warning:' : ':white_check_mark:';
+
+// スクリーンショットの存在確認
+const hasScreenshots = existsSync('output/screenshots') &&
+  readdirSync('output/screenshots').some(f => f.endsWith('.png'));
+
+if (!hasScreenshots) {
+  console.warn('⚠ output/screenshots/ に画像がありません。テキスト投稿にフォールバックします。');
+}
 
 // ── Slack クライアント初期化 ──────────────────────────────────────
 const slack = new WebClient(BOT_TOKEN);
@@ -95,11 +107,35 @@ if (!summaryRes.ok) {
 }
 console.log('   ✅ サマリー投稿完了');
 
-// ── プロジェクトごとの詳細を投稿 ─────────────────────────────────
-console.log(`\n📋 ${sorted.length} 件のプロジェクト詳細を投稿中...`);
+// ── プロジェクトごとに画像投稿（またはテキスト投稿） ─────────────
+console.log(`\n📋 ${sorted.length} 件のプロジェクトを投稿中...`);
 
 for (const p of sorted) {
   const icon = statusEmoji(p.status);
+  const imagePath = `output/screenshots/${sanitizeFilename(p.project)}.png`;
+
+  if (hasScreenshots && existsSync(imagePath)) {
+    // 画像をSlackにアップロード
+    try {
+      await slack.files.uploadV2({
+        channel_id: CHANNEL_ID,
+        file: readFileSync(imagePath),
+        filename: `${sanitizeFilename(p.project)}.png`,
+        initial_comment: `${icon} *${p.project}*　担当: ${p.person || '未入力'}`,
+      });
+      console.log(`   ✅ ${p.project}（画像）`);
+    } catch (err) {
+      console.error(`   ❌ 画像アップロードに失敗 (${p.project}): ${err.message}`);
+      // 画像失敗時はテキストにフォールバック
+      await postAsText(p, icon);
+    }
+  } else {
+    // スクリーンショットがない場合はテキスト投稿
+    await postAsText(p, icon);
+  }
+}
+
+async function postAsText(p, icon) {
   const lines = [
     `${icon} *${p.project}*（担当: ${p.person || '未入力'}）`,
     `状況: ${p.status || '未入力'}　週次: ${p.weeklyStatus || '未入力'}`,
@@ -109,11 +145,8 @@ for (const p of sorted) {
   if (p.nextWeek)  lines.push(`→ 来週: ${p.nextWeek}`);
 
   try {
-    await slack.chat.postMessage({
-      channel: CHANNEL_ID,
-      text: lines.join('\n'),
-    });
-    console.log(`   ✅ ${p.project}`);
+    await slack.chat.postMessage({ channel: CHANNEL_ID, text: lines.join('\n') });
+    console.log(`   ✅ ${p.project}（テキスト）`);
   } catch (err) {
     console.error(`   ❌ エラー (${p.project}): ${err.message}`);
   }

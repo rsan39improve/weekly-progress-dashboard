@@ -28,17 +28,25 @@ jobs:
       - name: パッケージインストール
         run: npm ci
 
-      # 4. スプレッドシートからデータ取得
+      # 4. Playwright（Chromium）をインストール
+      - name: Playwright インストール
+        run: npx playwright install chromium --with-deps
+
+      # 5. スプレッドシートからデータ取得
       - name: データ取得
         env:
           GAS_URL: ${{ secrets.GAS_URL }}
         run: node scripts/fetch-sheets.js
 
-      # 5. ダッシュボードHTML生成
+      # 6. ダッシュボードHTML・カード生成
       - name: ダッシュボード生成
         run: node scripts/generate-dashboard.js
 
-      # 6. Slackに投稿
+      # 7. カードのスクリーンショット撮影
+      - name: スクリーンショット撮影
+        run: node scripts/screenshot.js
+
+      # 8. Slackに画像投稿
       - name: Slack投稿
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
