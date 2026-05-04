@@ -24,11 +24,32 @@ if (!res.ok) {
 
 const data = await res.json();
 
-mkdirSync('output', { recursive: true });
-writeFileSync('output/data.json', JSON.stringify(data, null, 2), 'utf-8');
+// ── 直近7日以内に報告されたプロジェクトだけに絞る ────────────────
+// 月曜朝に実行されるため「先週金曜〜日曜に入力した分」が対象になる
+const now = new Date();
+const cutoff = new Date(now);
+cutoff.setDate(now.getDate() - 7); // 7日前より新しいデータのみ
 
-console.log(`✅ ${data.projects.length} 件のプロジェクトを取得しました`);
-data.projects.forEach(p => {
+const allProjects = data.projects;
+const recentProjects = allProjects.filter(p => {
+  if (!p.reportDate) return false;
+  const reportDate = new Date(p.reportDate);
+  return reportDate >= cutoff;
+});
+
+const filteredData = { ...data, projects: recentProjects };
+
+mkdirSync('output', { recursive: true });
+writeFileSync('output/data.json', JSON.stringify(filteredData, null, 2), 'utf-8');
+
+console.log(`✅ 全 ${allProjects.length} 件中、直近7日以内の報告: ${recentProjects.length} 件`);
+if (allProjects.length !== recentProjects.length) {
+  const skipped = allProjects.filter(p => !recentProjects.includes(p));
+  skipped.forEach(p => {
+    console.log(`   ⏭ スキップ（古いデータ）: ${p.project}（${p.reportDate}）`);
+  });
+}
+recentProjects.forEach(p => {
   const icon = p.status === '順調' ? '🟢' : p.status === '注意' ? '🟡' : p.status === '危険' ? '🔴' : '⚫';
-  console.log(`   ${icon} ${p.project}（${p.person}）: ${p.status} ${p.progress}%`);
+  console.log(`   ${icon} ${p.project}（${p.person}）: ${p.status}`);
 });
