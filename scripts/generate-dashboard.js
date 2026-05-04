@@ -24,6 +24,11 @@ function safeHtml(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// 改行を <br> に変換（カード内のテキストエリア入力用）
+function safeHtmlWithBreaks(s) {
+  return safeHtml(s).replace(/\n/g, '<br>');
+}
+
 // ステータスに応じた色設定（ダッシュボード用）
 function getStatusStyle(status) {
   switch (status) {
@@ -95,7 +100,7 @@ function projectCard(p) {
   const issueBlock = p.issues
     ? `<div style="background:#fff7ed;border-left:3px solid #f97316;padding:10px 14px;border-radius:0 8px 8px 0;margin-top:12px;">
         <div style="font-size:11px;font-weight:700;color:#ea580c;margin-bottom:3px;">⚠ 課題・リスク</div>
-        <div style="font-size:13px;color:#431407;line-height:1.6;">${safeHtml(p.issues)}</div>
+        <div style="font-size:13px;color:#431407;line-height:1.8;">${safeHtmlWithBreaks(p.issues)}</div>
       </div>`
     : `<div style="font-size:12px;color:#15803d;background:#f0fdf4;border-radius:8px;padding:8px 12px;margin-top:12px;">✅ 課題・リスクなし</div>`;
 
@@ -138,7 +143,7 @@ function projectCard(p) {
         ${p.weeklyTask ? `
           <div style="margin-bottom:10px;">
             <div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:4px;">今週達成したタスク</div>
-            <div style="font-size:13px;color:#334155;line-height:1.6;">${safeHtml(p.weeklyTask)}</div>
+            <div style="font-size:13px;color:#334155;line-height:1.8;">${safeHtmlWithBreaks(p.weeklyTask)}</div>
           </div>` : ''}
 
         <!-- 課題・リスク -->
@@ -148,7 +153,7 @@ function projectCard(p) {
         ${p.nextWeek ? `
           <div style="margin-top:12px;">
             <div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:4px;">来週のタスク</div>
-            <div style="font-size:13px;color:#334155;line-height:1.6;">${safeHtml(p.nextWeek)}</div>
+            <div style="font-size:13px;color:#334155;line-height:1.8;">${safeHtmlWithBreaks(p.nextWeek)}</div>
           </div>` : ''}
       </div>
     </div>
@@ -242,7 +247,7 @@ function generateCardHtml(p, date) {
         </svg>
         <div>
           <div style="font-size:13px;font-weight:700;color:${t.issueLabel};margin-bottom:4px;">課題・リスク</div>
-          <div style="font-size:13px;color:${t.issueText};line-height:1.6;">${safeHtml(p.issues)}</div>
+          <div style="font-size:13px;color:${t.issueText};line-height:1.8;">${safeHtmlWithBreaks(p.issues)}</div>
         </div>
       </div>`
     : `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:8px;">
@@ -284,7 +289,7 @@ function generateCardHtml(p, date) {
     .sec { display:flex; gap:12px; margin-bottom:14px; }
     .sec-bar { width:3px; border-radius:9999px; flex-shrink:0; margin-top:2px; }
     .sec-lbl { font-size:13px; font-weight:700; color:#64748b; margin-bottom:4px; }
-    .sec-txt { font-size:13px; color:#334155; line-height:1.65; }
+    .sec-txt { font-size:13px; color:#334155; line-height:1.8; }
   </style>
 </head>
 <body>
@@ -328,7 +333,7 @@ function generateCardHtml(p, date) {
       <div class="sec-bar" style="background:#60a5fa;"></div>
       <div>
         <div class="sec-lbl">今週達成したタスク</div>
-        <div class="sec-txt">${safeHtml(p.weeklyTask)}</div>
+        <div class="sec-txt">${safeHtmlWithBreaks(p.weeklyTask)}</div>
       </div>
     </div>` : ''}
     ${issueBlock}
@@ -337,7 +342,7 @@ function generateCardHtml(p, date) {
       <div class="sec-bar" style="background:#cbd5e1;"></div>
       <div>
         <div class="sec-lbl">来週のタスク</div>
-        <div class="sec-txt">${safeHtml(p.nextWeek)}</div>
+        <div class="sec-txt">${safeHtmlWithBreaks(p.nextWeek)}</div>
       </div>
     </div>` : ''}
   </div>
