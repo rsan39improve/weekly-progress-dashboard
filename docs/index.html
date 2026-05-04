@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>週次進捗 入力フォーム</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { fontFamily: { sans: ['"Noto Sans JP"', 'sans-serif'] } } }
+    }
+  </script>
+  <style>
+    body {
+      background: #f0f4f8;
+      font-family: 'Noto Sans JP', sans-serif;
+    }
+
+    /* ラジオボタン非表示 */
+    input[type="radio"],
+    input[type="checkbox"] { position: absolute; opacity: 0; width: 0; height: 0; }
+
+    /* ステータスボタン */
+    .status-good input:checked ~ .btn-label {
+      background: #dcfce7; border-color: #16a34a; color: #15803d;
+    }
+    .status-good .btn-label:hover { background: #f0fdf4; border-color: #86efac; }
+
+    .status-caution input:checked ~ .btn-label {
+      background: #fef9c3; border-color: #ca8a04; color: #a16207;
+    }
+    .status-caution .btn-label:hover { background: #fefce8; border-color: #fde047; }
+
+    .status-danger input:checked ~ .btn-label {
+      background: #fee2e2; border-color: #dc2626; color: #b91c1c;
+    }
+    .status-danger .btn-label:hover { background: #fff1f2; border-color: #fca5a5; }
+
+    /* 手紙の封筒下部ストライプ */
+    .envelope-bottom {
+      height: 20px;
+      background: repeating-linear-gradient(
+        -45deg,
+        #3b82f6,
+        #3b82f6 6px,
+        white 6px,
+        white 14px
+      );
+      border-radius: 0 0 20px 20px;
+      opacity: 0.35;
+    }
+  </style>
+</head>
+<body class="min-h-screen py-10 px-4">
+
+<div class="max-w-lg mx-auto pb-20">
+
+  <!-- =============================== -->
+  <!-- 手紙の封筒フレーム              -->
+  <!-- =============================== -->
+  <div class="bg-white rounded-2xl shadow-xl overflow-hidden" style="border: 1.5px solid #dde3ec;">
+
+    <!-- 封筒ヘッダー帯 -->
+    <div class="bg-blue-600 px-6 py-5">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="bg-white/20 rounded-xl p-2">
+            <i data-lucide="mail" class="w-6 h-6 text-white"></i>
+          </div>
+          <div>
+            <p class="text-blue-100 text-xs font-medium">週次報告フォーム</p>
+            <h1 class="text-white font-black text-lg leading-tight">週次進捗レポート</h1>
+          </div>
+        </div>
+        <!-- 切手風バッジ -->
+        <div class="bg-white rounded-lg px-3 py-2 text-center border-2 border-dashed border-blue-300" style="min-width:64px;">
+          <div class="text-blue-600 text-xs font-black leading-none">毎週</div>
+          <div class="text-blue-800 text-xs font-black">金曜</div>
+          <div class="text-blue-600 text-xs">退勤前</div>
+        </div>
+      </div>
+      <p class="text-blue-200 text-xs mt-3 flex items-center gap-1.5">
+        <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+        毎週金曜日退勤前に入力してください　所要時間の目安：3〜5分
+      </p>
+    </div>
+
+    <!-- フォーム本体（便箋風） -->
+    <div class="px-6 py-5">
+      <form id="reportForm" class="space-y-4">
+
+        <!-- ① 担当者名 -->
+        <div class="bg-slate-50 rounded-xl border border-slate-200 p-4">
+          <label class="block text-sm font-bold text-slate-700 mb-2">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="user" class="w-3.5 h-3.5 text-blue-600"></i>
+              </span>
+              担当者名
+              <span class="text-red-400">*</span>
+            </span>
+          </label>
+          <input
+            type="text"
+            name="person"
+            placeholder="例：田中"
+            required
+            class="w-full border border-slate-200 rounded-xl px-4 py-3 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
+          />
+        </div>
+
+        <!-- ② 担当プロジェクト名 -->
+        <div class="bg-slate-50 rounded-xl border border-slate-200 p-4">
+          <label class="block text-sm font-bold text-slate-700 mb-2">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-6 h-6 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="briefcase" class="w-3.5 h-3.5 text-indigo-600"></i>
+              </span>
+              担当プロジェクト名
+              <span class="text-red-400">*</span>
+            </span>
+          </label>
+          <div class="relative">
+            <select name="project" required class="w-full border border-slate-200 rounded-xl px-4 py-3 text-slate-700 bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm font-medium">
+              <option value="" disabled selected>プロジェクトを選んでください</option>
+              <option>A事業（目黒区）</option>
+              <option>B事業（墨田区）</option>
+              <option>C事業（埼玉県）</option>
+              <option>D事業（群馬県）</option>
+            </select>
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+          </div>
+        </div>
+
+        <!-- ③ 事業全体の進捗状況 -->
+        <div class="bg-slate-50 rounded-xl border border-slate-200 p-4">
+          <div class="text-sm font-bold text-slate-700 mb-1">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-6 h-6 rounded-lg bg-teal-100 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="bar-chart-2" class="w-3.5 h-3.5 text-teal-600"></i>
+              </span>
+              事業全体の進捗状況
+            </span>
+          </div>
+          <div class="text-xs text-slate-400 mb-3 ml-7">このプロジェクト全体を通した状態</div>
+          <div class="grid grid-cols-3 gap-2">
+            <label class="status-good cursor-pointer">
+              <input type="radio" name="overallStatus" value="順調" checked>
+              <div class="btn-label border-2 border-slate-200 bg-white rounded-xl py-4 text-center text-sm font-bold text-slate-400 transition-all select-none">
+                <div class="text-2xl mb-1">🟢</div>
+                順調
+              </div>
+            </label>
+            <label class="status-caution cursor-pointer">
+              <input type="radio" name="overallStatus" value="停滞">
+              <div class="btn-label border-2 border-slate-200 bg-white rounded-xl py-4 text-center text-sm font-bold text-slate-400 transition-all select-none">
+                <div class="text-2xl mb-1">🟡</div>
+                停滞
+              </div>
+            </label>
+            <label class="status-danger cursor-pointer">
+              <input type="radio" name="overallStatus" value="危険">
+              <div class="btn-label border-2 border-slate-200 bg-white rounded-xl py-4 text-center text-sm font-bold text-slate-400 transition-all select-none">
+                <div class="text-2xl mb-1">🔴</div>
+                危険
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- ④ 今週の作業ステータス -->
+        <div class="bg-slate-50 rounded-xl border border-slate-200 p-4">
+          <div class="text-sm font-bold text-slate-700 mb-1">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-6 h-6 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="calendar-check" class="w-3.5 h-3.5 text-purple-600"></i>
+              </span>
+              今週の作業ステータス
+            </span>
+          </div>
+          <div class="text-xs text-slate-400 mb-3 ml-7">今週の作業の進み具合</div>
+          <div class="grid grid-cols-3 gap-2">
+            <label class="status-good cursor-pointer">
+              <input type="radio" name="weeklyStatus" value="順調" checked>
+              <div class="btn-label border-2 border-slate-200 bg-white rounded-xl py-4 text-center text-sm font-bold text-slate-400 transition-all select-none">
+                <div class="text-2xl mb-1">🟢</div>
+                順調
+              </div>
+            </label>
+            <label class="status-caution cursor-pointer">
+              <input type="radio" name="weeklyStatus" value="停滞">
+              <div class="btn-label border-2 border-slate-200 bg-white rounded-xl py-4 text-center text-sm font-bold text-slate-400 transition-all select-none">
+                <div class="text-2xl mb-1">🟡</div>
+                停滞
+              </div>
+            </label>
+            <label class="status-danger cursor-pointer">
+              <input type="radio" name="weeklyStatus" value="危険">
+              <div class="btn-label border-2 border-slate-200 bg-white rounded-xl py-4 text-center text-sm font-bold text-slate-400 transition-all select-none">
+                <div class="text-2xl mb-1">🔴</div>
+                危険
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- ⑤ 今週達成したタスク -->
+        <div class="bg-slate-50 rounded-xl border border-slate-200 p-4">
+          <label class="block text-sm font-bold text-slate-700 mb-1">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-6 h-6 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-green-600"></i>
+              </span>
+              今週達成したタスク
+              <span class="text-red-400">*</span>
+            </span>
+          </label>
+          <p class="text-xs text-slate-400 mb-3 ml-7">箇条書きでOK。完了したこと・進んだことを書いてください。</p>
+          <textarea
+            name="weeklyTask"
+            rows="3"
+            placeholder="例：
+・地元勉強会の開催支援をした
+・行政協議で来年度補助要望額を確認した"
+            class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-green-300 resize-none bg-white"
+          ></textarea>
+        </div>
+
+        <!-- ⑥ 事業の課題・リスク -->
+        <div class="bg-red-50 rounded-xl border border-red-100 p-4">
+          <label class="block text-sm font-bold text-slate-700 mb-1">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-6 h-6 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-red-500"></i>
+              </span>
+              事業の課題・リスク
+            </span>
+          </label>
+          <p class="text-xs text-slate-400 mb-3 ml-7">困っていること・懸念点を書いてください。なければ「なし」でOK。</p>
+          <textarea
+            name="issues"
+            rows="3"
+            placeholder="例：
+・工事の見積金額が予算に合わない
+・来月末までの申請スケジュールに書類が間に合わない"
+            class="w-full border border-red-100 bg-white rounded-xl px-4 py-3 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-red-200 resize-none"
+          ></textarea>
+        </div>
+
+        <!-- ⑦ 来週のタスク -->
+        <div class="bg-slate-50 rounded-xl border border-slate-200 p-4">
+          <label class="block text-sm font-bold text-slate-700 mb-1">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="arrow-right-circle" class="w-3.5 h-3.5 text-blue-600"></i>
+              </span>
+              来週のタスク
+              <span class="text-red-400">*</span>
+            </span>
+          </label>
+          <p class="text-xs text-slate-400 mb-3 ml-7">来週やること・動かすことを書いてください。</p>
+          <textarea
+            name="nextWeek"
+            rows="3"
+            placeholder="例：
+・見積額を資金計画に反映して、再度事業性を検証する
+・行政協議に向けた資料を作成する"
+            class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none bg-white"
+          ></textarea>
+        </div>
+
+        <!-- ⑧ その他気になっている点 -->
+        <div class="bg-slate-50 rounded-xl border border-slate-200 p-4">
+          <label class="block text-sm font-bold text-slate-700 mb-1">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-6 h-6 rounded-lg bg-slate-200 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="message-circle" class="w-3.5 h-3.5 text-slate-500"></i>
+              </span>
+              その他気になっている点
+              <span class="text-xs font-normal text-slate-400 ml-1">（任意）</span>
+            </span>
+          </label>
+          <p class="text-xs text-slate-400 mb-3 ml-7">上司に相談したいこと・チームで共有したいことなど、自由に。</p>
+          <textarea
+            name="notes"
+            rows="2"
+            placeholder="例：追加の外注が必要になるかもしれません"
+            class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none bg-white"
+          ></textarea>
+        </div>
+
+        <!-- 送信ボタン -->
+        <button
+          id="submitBtn"
+          type="submit"
+          class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-4 rounded-2xl text-base transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          <i data-lucide="send" class="w-5 h-5" id="submitIcon"></i>
+          <span id="submitLabel">報告を送信する</span>
+        </button>
+
+        <!-- エラーメッセージ -->
+        <div id="errorMsg" class="hidden bg-red-50 border border-red-200 rounded-2xl px-5 py-4 flex items-start gap-3">
+          <i data-lucide="alert-circle" class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5"></i>
+          <div>
+            <div class="text-sm font-bold text-red-700">送信に失敗しました</div>
+            <div id="errorDetail" class="text-xs text-red-600 mt-0.5"></div>
+          </div>
+        </div>
+
+      </form>
+
+      <!-- 送信完了メッセージ -->
+      <div id="successMsg" class="hidden mt-2 bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-4 flex items-start gap-3">
+        <i data-lucide="check-circle" class="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5"></i>
+        <div>
+          <div class="text-sm font-bold text-emerald-700">送信完了！ありがとうございます</div>
+          <div class="text-xs text-emerald-600 mt-0.5">月曜朝9:00にSlackでチームに共有されます。</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 封筒フッター（斜めストライプ） -->
+    <div class="envelope-bottom"></div>
+
+  </div><!-- /封筒フレーム -->
+
+</div>
+
+<!-- モックアップ説明バナー -->
+<div class="fixed bottom-0 left-0 right-0 bg-blue-600 text-white text-center py-2 text-xs font-medium">
+  ① 担当者の入力フォーム — モックアップ（ボタンは実際に動きます）
+</div>
+
+<script>lucide.createIcons();</script>
+
+<script>
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbxKyNxpqv4ZRe_tGvKVVPRsqoUwqPCOHJriEsFDN9WuWpPRfjkvth_26P0apSRjNMrA/exec';
+
+  const form = document.getElementById('reportForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const submitLabel = document.getElementById('submitLabel');
+  const submitIcon = document.getElementById('submitIcon');
+  const successMsg = document.getElementById('successMsg');
+  const errorMsg = document.getElementById('errorMsg');
+  const errorDetail = document.getElementById('errorDetail');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    if (GAS_URL.includes('ここに')) {
+      alert('GAS_URL を設定してください');
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitLabel.textContent = '送信中...';
+    submitIcon.setAttribute('data-lucide', 'loader');
+    lucide.createIcons();
+    errorMsg.classList.add('hidden');
+
+    const formData = new FormData(form);
+    const params = new URLSearchParams();
+    for (const [key, value] of formData.entries()) {
+      params.append(key, value);
+    }
+
+    try {
+      await fetch(GAS_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: params,
+      });
+
+      form.classList.add('hidden');
+      successMsg.classList.remove('hidden');
+
+    } catch (err) {
+      errorDetail.textContent = err.message || '通信エラーが発生しました。';
+      errorMsg.classList.remove('hidden');
+
+      submitBtn.disabled = false;
+      submitLabel.textContent = '報告を送信する';
+      submitIcon.setAttribute('data-lucide', 'send');
+      lucide.createIcons();
+    }
+  });
+</script>
+</body>
+</html>
