@@ -3,50 +3,71 @@ name: weekly-progress-dashboard
 description: 週次プロジェクト進捗管理ツールの設計仕様と実装ガイド。入力フォーム・Slackレポート・HTMLダッシュボードの構成、承認済みデザイン、技術スタックを記録する。このプロジェクトへの変更・追加・実装の際に参照する。
 ---
 
-# weekly-progress-dashboard — 設計仕様
+# weekly-progress-dashboard — 設計仕様（最終更新：2026年4月）
 
 ## ツールの概要
 
-チームメンバー（2〜3人）が週末に進捗を入力し、月曜朝に自動でSlackへレポートを投稿する進捗管理ツール。
+チームメンバーが毎週末に進捗を入力し、月曜朝に自動でSlackへ画像レポートを投稿する進捗管理ツール。
 
 ```
-【金曜】担当者 → 入力フォーム（ブラウザ）
-             ↓ Google スプレッドシートに自動保存
-【月曜 9:00】bash run.sh を1回実行
-   ① スプレッドシートからデータ取得
-   ② HTMLダッシュボード生成（信号機カラー）
-   ③ Surge.sh に公開（URL発行）
-   ④ スクリーンショット撮影
-   ⑤ Slackにレポート + URL を投稿
+【毎週末】担当者 → 入力フォーム（ブラウザ・スマホ対応）
+              ↓ Google Apps Script（GAS）でスプレッドシートに自動保存
+【月曜 8:00 JST】GitHub Actions が自動起動（PC不要・完全自動）
+   ① スプレッドシートからデータ取得（直近8日以内のみ）
+   ② HTMLダッシュボード + プロジェクトカード生成
+   ③ Playwright でカードをスクリーンショット撮影
+   ④ Slack Bot API でカード画像を投稿
 ```
 
 ---
 
-## 承認済みデザイン仕様
+## 実装状況（Phase 1 完了）
 
-モックアップの実ファイルは `output/` に保存されている。
+### ✅ 実装済み
 
-| 画面 | ファイル | 承認状態 |
-|------|---------|---------|
-| 入力フォーム | `output/mockup-form.html` | 承認済み |
-| Slackレポート | `output/mockup-slack.html` | 承認済み |
-| 詳細ダッシュボード | `output/mockup.html` | 承認済み |
+| 機能 | 実装場所 |
+|------|----------|
+| 入力フォーム（GitHub Pages で公開） | `docs/index.html` |
+| GAS によるデータ保存（doPost） | `gas/コード.js` |
+| GAS によるデータ配信（doGet） | `gas/コード.js` |
+| データ取得・直近8日フィルタリング | `scripts/fetch-sheets.js` |
+| カードHTML・ダッシュボード生成 | `scripts/generate-dashboard.js` |
+| Playwright スクリーンショット撮影 | `scripts/screenshot.js` |
+| Slack Bot API 画像投稿 | `scripts/post-slack.js` |
+| GitHub Actions 月曜自動実行 | `.github/workflows/weekly-report.yml` |
+
+### 🔜 未実装（今後対応）
+
+| 機能 | 優先度 |
+|------|--------|
+| 金曜リマインダー通知 | 高 |
+| 未提出者の検知 | 高 |
+| AI要約・管理者コメント（Gemini） | 中 |
+| ルールベーススコアリング | 中 |
+| 月次サマリー | 低 |
 
 ---
 
-## 入力フォームの仕様（承認済み）
+## 入力フォームの仕様
+
+### 公開URL
+
+```
+https://rsan39improve.github.io/weekly-progress-dashboard/
+```
 
 ### フィールド一覧
 
 | # | フィールド名 | 種別 | 必須 |
 |---|------------|------|------|
-| 1 | 担当プロジェクト名 | プルダウン | 必須 |
-| 2 | 事業全体の進捗状況 | 3択ボタン | 必須 |
-| 3 | 今週の作業ステータス | 3択ボタン | 必須 |
-| 4 | 今週達成したタスク | 自由記述 | 必須 |
-| 5 | 事業の課題・リスク | 自由記述 | 任意 |
-| 6 | 来週のタスク | 自由記述 | 必須 |
-| 7 | その他気になっている点 | 自由記述 | 任意 |
+| 1 | 担当者名 | テキスト | 必須 |
+| 2 | 担当プロジェクト名 | プルダウン | 必須 |
+| 3 | 事業全体の進捗状況 | 3択ボタン | 必須 |
+| 4 | 今週の作業ステータス | 3択ボタン | 必須 |
+| 5 | 今週達成したタスク | 自由記述 | 必須（required属性あり） |
+| 6 | 事業の課題・リスク | 自由記述 | 任意 |
+| 7 | 来週のタスク | 自由記述 | 必須（required属性あり） |
+| 8 | その他気になっている点 | 自由記述 | 任意 |
 
 ### ステータス選択肢（3択・共通）
 
@@ -60,33 +81,30 @@ description: 週次プロジェクト進捗管理ツールの設計仕様と実�
 - 課題欄は**薄赤背景**で書き漏れを防ぐ
 - 所要時間の目安「3〜5分」を表示して心理的ハードルを下げる
 - スマートフォンでも入力しやすいレイアウト
+- 入力タイミングは「毎週末退勤前」（金曜祝日にも対応）
 
 ---
 
-## Slackレポートの仕様（承認済み）
+## Slack投稿の仕様
 
 ### 投稿タイミング
 
-毎週月曜日 9:00（`bash run.sh` の実行タイミングに依存）
+毎週月曜日 8:00 JST（GitHub Actions cron: `0 23 * * 0`）
 
 ### 投稿内容の構成
 
-1. **ヘッダー** — 日付 + 全体ステータス（危険があれば赤く点滅するドット）
-2. **サマリー** — 順調 / 停滞 / 危険 の件数
-3. **プロジェクト一覧** — 危険 → 停滞 → 順調 の順に表示
-   - 危険・停滞のプロジェクトは課題文もその場で表示
-   - 順調なプロジェクトは一行のみ（課題なし）
-4. **詳細リンク** — 「詳細ダッシュボードを開く →」（Surge.sh URL）
+1. **サマリーメッセージ** — 日付・全体ステータス・順調/停滞/危険の件数
+2. **プロジェクトカード画像** — 危険 → 停滞 → 順調 の順に投稿
+   - 画像には：担当者・ステータス・今週のタスク・課題・来週のタスクを表示
+   - 改行・箇条書きはそのまま画像に反映される（`\n` → `<br>` 変換済み）
+   - 画像がない場合はテキストにフォールバック
+3. **投稿結果** — 成功・失敗件数を最後にターミナルに表示
 
----
+### Slack認証方法
 
-## 詳細ダッシュボードの仕様（承認済み）
-
-- プロジェクトカードを**危険 → 停滞 → 順調**の順に表示
-- カードの枠色・背景色がステータスに連動（赤・黄・緑）
-- 各カードに「今週の進捗 / 課題・リスク / 来週の予定」を3カラムで表示
-- 課題がない場合は「課題なし」を緑で表示
-- 上部にサマリーカード（全件数・順調・停滞・危険の4枚）
+- `SLACK_BOT_TOKEN`（xoxb-...）を GitHub Secrets に登録
+- `@slack/web-api` の `WebClient` を使用
+- 画像投稿は `files.uploadV2`、テキストは `chat.postMessage`
 
 ---
 
@@ -94,15 +112,15 @@ description: 週次プロジェクト進捗管理ツールの設計仕様と実�
 
 | 役割 | 技術 |
 |------|------|
-| 入力フォーム | 静的HTML（Tailwind CSS） |
+| 入力フォーム | 静的HTML（Tailwind CSS CDN + Lucide Icons） |
+| フォーム公開 | GitHub Pages（`docs/index.html`） |
 | データ保存 | Google スプレッドシート + Google Apps Script |
-| データ取得 | Node.js（fetch） |
-| ダッシュボード生成 | Node.js（HTMLテンプレート文字列） |
-| ホスティング | Surge.sh |
+| データ取得 | Node.js（fetch + GAS doGet） |
+| カード・ダッシュボード生成 | Node.js（HTMLテンプレート文字列） |
 | スクリーンショット | Playwright / Chromium |
-| Slack投稿 | Slack Incoming Webhooks |
-| 自動実行 | `bash run.sh`（手動月曜実行、将来的にcron化も可） |
-| スタイリング | Tailwind CSS CDN |
+| Slack投稿 | Slack Bot API（`@slack/web-api`） |
+| 自動実行 | GitHub Actions（cron） |
+| 環境変数管理 | `.env`（ローカル） / GitHub Secrets（CI） |
 
 ---
 
@@ -110,52 +128,57 @@ description: 週次プロジェクト進捗管理ツールの設計仕様と実�
 
 ```
 weekly-progress-dashboard/
-├── README.md                  ← セットアップ手順書
+├── README.md                  ← セットアップ手順書（ユーザー向け）
+├── DESIGN.md                  ← 詳細設計書（開発者向け）
 ├── package.json
 ├── .env.example               ← 設定テンプレート
 ├── .env                       ← 実際の設定（Git管理外）
-├── run.sh                     ← 毎週月曜に実行する1コマンド
+├── run.sh                     ← ローカル手動実行スクリプト（CI と手順が異なる）
+├── docs/
+│   └── index.html             ← 入力フォーム（GitHub Pages で公開）
 ├── gas/
-│   └── コード.js              ← Google Apps Scriptに貼るコード
+│   └── コード.js              ← Google Apps Script（doGet / doPost）
 ├── scripts/
-│   ├── fetch-sheets.js        ← スプレッドシートからデータ取得
-│   ├── generate-dashboard.js  ← HTMLダッシュボード生成
-│   ├── deploy.js              ← Surge.sh に公開
-│   ├── screenshot.js          ← スクリーンショット撮影
-│   └── post-slack.js          ← Slack投稿
-├── output/                    ← 生成されるファイル（Git管理外）
-│   ├── mockup.html            ← 詳細ダッシュボード モックアップ
-│   ├── mockup-form.html       ← 入力フォーム モックアップ（承認済み）
-│   ├── mockup-slack.html      ← Slackレポート モックアップ（承認済み）
-│   ├── data.json
-│   ├── dashboard.html
-│   └── screenshot-1.png
-└── .cursor/
-    └── skills/
-        └── weekly-progress-dashboard/
-            └── SKILL.md       ← このファイル
+│   ├── fetch-sheets.js        ← GASからデータ取得・8日フィルタリング
+│   ├── generate-dashboard.js  ← HTMLカード・ダッシュボード生成
+│   ├── deploy.js              ← Surge.sh 公開（ローカルrun.sh用・CIでは未使用）
+│   ├── screenshot.js          ← Playwright スクリーンショット
+│   └── post-slack.js          ← Slack Bot API 画像投稿
+├── output/                    ← 生成ファイル（Git管理外）
+│   ├── data.json              ← GASから取得したデータ
+│   ├── dashboard.html         ← ダッシュボードHTML
+│   ├── cards/                 ← プロジェクトカードHTML
+│   └── screenshots/           ← カードのスクリーンショット
+└── .github/
+    └── workflows/
+        └── weekly-report.yml  ← GitHub Actions ワークフロー
 ```
 
 ---
 
-## 実装の進め方
+## 環境変数
 
-### 未完成の部分（今後対応）
-
-1. **入力フォームのバックエンド接続** — Google Apps Script へのPOST送信処理
-2. **generate-dashboard.js のデザイン更新** — モックアップの見た目に合わせる
-3. **post-slack.js のデザイン更新** — 「停滞」表記への変更（「注意」から統一）
-
-### 変更時の注意
-
-- ステータスの選択肢は**順調・停滞・危険**の3択で統一する（「注意」「停止」は使わない）
-- 入力フォームのフィールド構成を変える場合は、Google Apps Script の `コード.js` と `fetch-sheets.js` も同時に更新する
-- デザイン変更は `output/mockup-*.html` を先に更新してユーザーに確認を取ってから本実装に反映する
+| 変数名 | 説明 | 設定場所 |
+|--------|------|----------|
+| `GAS_URL` | GAS doGet/doPost のURL | `.env` / GitHub Secrets |
+| `SLACK_BOT_TOKEN` | Slack Bot Token（xoxb-...） | `.env` / GitHub Secrets |
+| `SLACK_CHANNEL_ID` | 投稿先チャンネルID（C...） | `.env` / GitHub Secrets |
+| `SURGE_DOMAIN` | Surge.sh ドメイン（ローカルのみ使用） | `.env` のみ |
 
 ---
 
-## 将来の移行計画
+## 変更時の注意
 
-現在はGoogle スプレッドシート（試作版）。  
-上司への提案・承認後に**Excelファイル（共有SMBサーバー）版**へ移行予定。  
-移行時に変更が必要なのは `scripts/fetch-sheets.js` のみ（`xlsx` ライブラリに切り替え）。
+- ステータスの選択肢は**順調・停滞・危険**の3択で統一する（「注意」「停止」は使わない）
+- フォームのフィールドを変える場合は `gas/コード.js`・`scripts/fetch-sheets.js`・`docs/index.html` を同時に更新する
+- `docs/index.html` を変更した場合は GitHub に push するだけで GitHub Pages に自動反映される
+- ローカルの `run.sh` は Surge.sh デプロイを含むため CI と手順が異なる。Slack投稿だけ確認したい場合は各スクリプトを個別実行する
+- `output/` フォルダは `.gitignore` で管理外（生成物のため）
+
+---
+
+## 将来の拡張方針
+
+- **AI要約（Gemini）**: `data.json` 取得後に `scripts/summarize.js` を追加して挟む
+- **金曜リマインダー**: GASの時間トリガー または 別のGitHub Actionsワークフローで対応
+- **未提出検知**: マスターシート（全プロジェクト一覧）との照合が必要
