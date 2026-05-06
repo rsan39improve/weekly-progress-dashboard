@@ -110,12 +110,14 @@ console.log('   ✅ サマリー投稿完了');
 // ── プロジェクトごとに画像投稿（またはテキスト投稿） ─────────────
 console.log(`\n📋 ${sorted.length} 件のプロジェクトを投稿中...`);
 
+let successCount = 0;
+let failCount = 0;
+
 for (const p of sorted) {
   const icon = statusEmoji(p.status);
   const imagePath = `output/screenshots/${sanitizeFilename(p.project)}.png`;
 
   if (hasScreenshots && existsSync(imagePath)) {
-    // 画像をSlackにアップロード
     try {
       await slack.files.uploadV2({
         channel_id: CHANNEL_ID,
@@ -124,14 +126,16 @@ for (const p of sorted) {
         initial_comment: `${icon} *${p.project}*　担当: ${p.person || '未入力'}`,
       });
       console.log(`   ✅ ${p.project}（画像）`);
+      successCount++;
     } catch (err) {
       console.error(`   ❌ 画像アップロードに失敗 (${p.project}): ${err.message}`);
       // 画像失敗時はテキストにフォールバック
-      await postAsText(p, icon);
+      const ok = await postAsText(p, icon);
+      if (ok) successCount++; else failCount++;
     }
   } else {
-    // スクリーンショットがない場合はテキスト投稿
-    await postAsText(p, icon);
+    const ok = await postAsText(p, icon);
+    if (ok) successCount++; else failCount++;
   }
 }
 
@@ -147,9 +151,17 @@ async function postAsText(p, icon) {
   try {
     await slack.chat.postMessage({ channel: CHANNEL_ID, text: lines.join('\n') });
     console.log(`   ✅ ${p.project}（テキスト）`);
+    return true;
   } catch (err) {
     console.error(`   ❌ エラー (${p.project}): ${err.message}`);
+    return false;
   }
 }
 
-console.log('\n✅ Slack への投稿がすべて完了しました');
+// ── 投稿結果サマリー ──────────────────────────────────────────────
+if (failCount === 0) {
+  console.log(`\n✅ Slack への投稿がすべて完了しました（${successCount}件成功）`);
+} else {
+  console.warn(`\n⚠ 投稿完了（${successCount}件成功 / ${failCount}件失敗）`);
+  process.exit(1);
+}

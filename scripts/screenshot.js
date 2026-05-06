@@ -31,29 +31,36 @@ console.log(`📸 ${cardFiles.length} 件のカードをスクリーンショッ
 
 const browser = await chromium.launch();
 
-for (const file of cardFiles) {
-  const projectName = basename(file, extname(file));
-  const filePath = resolve(`${CARD_DIR}/${file}`);
-  const outPath = `${OUT_DIR}/${projectName}.png`;
+try {
+  for (const file of cardFiles) {
+    const projectName = basename(file, extname(file));
+    const filePath = resolve(`${CARD_DIR}/${file}`);
+    const outPath = `${OUT_DIR}/${projectName}.png`;
 
-  const page = await browser.newPage();
+    const page = await browser.newPage();
+    try {
+      // カード幅 640px に合わせたビューポート（高さは後でコンテンツに合わせる）
+      await page.setViewportSize({ width: CARD_WIDTH, height: 800 });
+      await page.goto(`file://${filePath}`, { waitUntil: 'load' });
 
-  // カード幅 640px に合わせたビューポート（高さは後でコンテンツに合わせる）
-  await page.setViewportSize({ width: CARD_WIDTH, height: 800 });
-  await page.goto(`file://${filePath}`, { waitUntil: 'networkidle' });
+      // コンテンツ高さに合わせてビューポートを調整し、余白なしでキャプチャ
+      const cardHeight = await page.evaluate(() => {
+        const el = document.querySelector('.card');
+        return el ? Math.ceil(el.getBoundingClientRect().height) : document.body.scrollHeight;
+      });
+      await page.setViewportSize({ width: CARD_WIDTH, height: cardHeight });
 
-  // コンテンツ高さに合わせてビューポートを調整し、余白なしでキャプチャ
-  const cardHeight = await page.evaluate(() => {
-    const el = document.querySelector('.card');
-    return el ? Math.ceil(el.getBoundingClientRect().height) : document.body.scrollHeight;
-  });
-  await page.setViewportSize({ width: CARD_WIDTH, height: cardHeight });
-
-  await page.screenshot({ path: outPath, clip: { x: 0, y: 0, width: CARD_WIDTH, height: cardHeight } });
-  await page.close();
-
-  console.log(`   ✅ ${projectName}.png`);
+      await page.screenshot({ path: outPath, clip: { x: 0, y: 0, width: CARD_WIDTH, height: cardHeight } });
+      console.log(`   ✅ ${projectName}.png`);
+    } catch (err) {
+      console.error(`   ❌ スクリーンショット失敗 (${projectName}): ${err.message}`);
+    } finally {
+      await page.close();
+    }
+  }
+} finally {
+  // 成功・失敗に関わらず必ずブラウザを閉じる
+  await browser.close();
 }
 
-await browser.close();
 console.log(`\n✅ スクリーンショットを保存しました: ${OUT_DIR}/`);

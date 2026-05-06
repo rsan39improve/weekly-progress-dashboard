@@ -16,13 +16,23 @@ if (!GAS_URL || GAS_URL.includes('ここに')) {
 
 console.log('📡 Google スプレッドシートからデータを取得中...');
 
-const res = await fetch(GAS_URL);
-if (!res.ok) {
-  console.error(`❌ データ取得に失敗しました（HTTPステータス: ${res.status}）`);
+let data;
+try {
+  const res = await fetch(GAS_URL);
+  if (!res.ok) {
+    console.error(`❌ データ取得に失敗しました（HTTPステータス: ${res.status}）`);
+    process.exit(1);
+  }
+  data = await res.json();
+} catch (err) {
+  console.error(`❌ データ取得中にエラーが発生しました: ${err.message}`);
   process.exit(1);
 }
 
-const data = await res.json();
+if (!data || !Array.isArray(data.projects)) {
+  console.error('❌ GASから取得したデータの形式が正しくありません。GASの設定を確認してください。');
+  process.exit(1);
+}
 
 // ── 直近7日以内に報告されたプロジェクトだけに絞る ────────────────
 // 月曜朝に実行されるため「先週金曜〜日曜に入力した分」が対象になる
