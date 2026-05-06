@@ -241,20 +241,18 @@ function generateCardHtml(p, date) {
   const wt = getCardTheme(p.weeklyStatus || p.status);
 
   const issueBlock = p.issues
-    ? `<div style="background:${t.issueBg};border:1px solid ${t.issueBorder};border-radius:12px;padding:14px 16px;display:flex;gap:10px;">
-        <svg style="width:18px;height:18px;flex-shrink:0;margin-top:2px;" fill="none" stroke="${t.issueLabel}" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-        </svg>
+    ? `<div class="sec" style="margin-bottom:0;">
+        <div class="sec-bar" style="background:${t.issueBorder};"></div>
         <div>
-          <div style="font-size:13px;font-weight:700;color:${t.issueLabel};margin-bottom:4px;">課題・リスク</div>
-          <div style="font-size:13px;color:${t.issueText};line-height:1.8;">${safeHtmlWithBreaks(p.issues)}</div>
+          <div class="sec-lbl" style="color:${t.issueLabel};">⚠ 課題・リスク</div>
+          <div class="sec-txt" style="color:${t.issueText};line-height:1.8;">${safeHtmlWithBreaks(p.issues)}</div>
         </div>
       </div>`
-    : `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:8px;">
-        <svg style="width:18px;height:18px;flex-shrink:0;" fill="none" stroke="#15803d" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-        </svg>
-        <span style="font-size:13px;font-weight:500;color:#15803d;">課題・リスクなし</span>
+    : `<div class="sec" style="margin-bottom:0;">
+        <div class="sec-bar" style="background:#86efac;"></div>
+        <div>
+          <div class="sec-lbl" style="color:#15803d;">課題・リスクなし</div>
+        </div>
       </div>`;
 
   return `<!DOCTYPE html>
