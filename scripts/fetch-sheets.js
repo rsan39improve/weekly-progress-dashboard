@@ -34,11 +34,13 @@ if (!data || !Array.isArray(data.projects)) {
   process.exit(1);
 }
 
-// ── 直近7日以内に報告されたプロジェクトだけに絞る ────────────────
+// ── 直近8日以内に報告されたプロジェクトだけに絞る ────────────────
 // 月曜朝に実行されるため「先週金曜〜日曜に入力した分」が対象になる
+// 8日にしているのは、GitHub ActionsのサーバーがUTCで動くため
+// 日付境界のズレや祝日による遅延で取りこぼしが起きないようにするため
 const now = new Date();
 const cutoff = new Date(now);
-cutoff.setDate(now.getDate() - 7); // 7日前より新しいデータのみ
+cutoff.setDate(now.getDate() - 8); // 8日前より新しいデータのみ（余裕を持たせる）
 
 const allProjects = data.projects;
 const recentProjects = allProjects.filter(p => {
@@ -52,7 +54,7 @@ const filteredData = { ...data, projects: recentProjects };
 mkdirSync('output', { recursive: true });
 writeFileSync('output/data.json', JSON.stringify(filteredData, null, 2), 'utf-8');
 
-console.log(`✅ 全 ${allProjects.length} 件中、直近7日以内の報告: ${recentProjects.length} 件`);
+console.log(`✅ 全 ${allProjects.length} 件中、直近8日以内の報告: ${recentProjects.length} 件`);
 if (allProjects.length !== recentProjects.length) {
   const skipped = allProjects.filter(p => !recentProjects.includes(p));
   skipped.forEach(p => {

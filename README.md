@@ -144,11 +144,22 @@ npx playwright install chromium
 
 ### 管理者（毎週月曜）
 
+通常は **GitHub Actions が毎週月曜 朝8:00（JST）に自動実行**するため、手動操作は不要です。
+
+手動で実行したい場合は以下のコマンドを使います：
+
 ```bash
 bash run.sh
 ```
 
-これ1つで全自動でSlackに投稿されます。
+> **注意：** `run.sh` はローカル実行用のスクリプトです。Surge.sh へのデプロイ（Step 3）が含まれており、GitHub Actions のワークフローとは手順が異なります。Slack への投稿だけ確認したい場合は、Surge のステップでエラーが出ても後続の screenshot・post-slack は実行されません。その場合は各スクリプトを個別に実行してください：
+>
+> ```bash
+> node scripts/fetch-sheets.js
+> node scripts/generate-dashboard.js
+> node scripts/screenshot.js
+> node scripts/post-slack.js
+> ```
 
 ---
 

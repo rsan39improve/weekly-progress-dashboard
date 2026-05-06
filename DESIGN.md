@@ -47,7 +47,7 @@
 ### 入力後
 入力内容はGoogleスプレッドシートへ自動的に蓄積される。
 
-### 月曜日 9:00
+### 月曜日 8:00 JST
 GitHub Actions が自動起動し、以下を処理する。
 
 - プロジェクトごとの進捗状況の集計
@@ -70,7 +70,7 @@ GitHub Actions が自動起動し、以下を処理する。
 【金曜 16:00】GAS時間トリガー → 未提出者リマインドをSlackに投稿
 【金曜 18:30】GAS時間トリガー → 未提出一覧を確認・Slack通知
 
-【月曜 9:00】GitHub Actions が自動起動（PC不要・完全自動）
+【月曜 8:00 JST】GitHub Actions が自動起動（PC不要・完全自動）
   ↓ run.sh を実行
   1. GAS（doGet）からスプレッドシートのデータを取得
   2. Node.js がルールベースでステータス・負荷を判定
@@ -309,16 +309,16 @@ B事業は相手方への連絡状況を確認してください。
 |------|---------|---------|
 | 金曜 16:00 | 未提出者リマインドをSlackに投稿 | GAS 時間トリガー |
 | 金曜 18:30 | 未提出一覧を確認・Slack通知 | GAS 時間トリガー |
-| 月曜 9:00 | 集計・AI要約・画像生成・Slack投稿 | GitHub Actions cron |
+| 月曜 8:00 JST | 集計・AI要約・画像生成・Slack投稿 | GitHub Actions cron |
 
 ### GitHub Actions cron 設定メモ
 
-月曜9:00（JST）= UTC で月曜0:00
+月曜8:00（JST）= UTC で日曜23:00
 
 ```yaml
 on:
   schedule:
-    - cron: '0 0 * * 1'  # 月曜 0:00 UTC = 月曜 9:00 JST
+    - cron: '0 23 * * 0'  # 日曜 23:00 UTC = 月曜 8:00 JST
 ```
 
 ---
@@ -465,7 +465,7 @@ weekly-progress-dashboard/
 2. GAS で Google スプレッドシートへの保存
 3. 案件別・担当者別の集計（Node.js）
 4. 危険案件・負荷偏在のルールベース判定
-5. GitHub Actions による月曜9時の自動実行
+5. GitHub Actions による月曜8時（JST）の自動実行
 6. Slack へのテキスト自動投稿
 
 この段階では、Playwright による画像生成と Gemini AI 要約は対象外とする。
@@ -516,7 +516,7 @@ weekly-progress-dashboard/
 
 - `.github/workflows/weekly-report.yml` を作成
 - `scripts/post-slack.js` でテキストサマリー投稿
-- 月曜9時の自動実行確認
+- 月曜8時（JST）の自動実行確認
 
 ### Step 4 — AI要約（Gemini）
 
@@ -564,5 +564,5 @@ weekly-progress-dashboard/
 - **入力は簡単にする** — 必須は8項目・3〜5分
 - **判定はプログラムで行う** — ルールベーススコアリング
 - **AIは要約と表現補助に絞る** — Gemini を構造化データのみに適用
-- **完全自動で動く** — GitHub Actions が毎週月曜9時に自動実行
+- **完全自動で動く** — GitHub Actions が毎週月曜8時（JST）に自動実行
 - **最初はテキスト投稿から** — 安定稼働を確認してから画像化
