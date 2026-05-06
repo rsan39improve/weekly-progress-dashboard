@@ -19,23 +19,27 @@ if [ ! -f ".env" ]; then
   exit 1
 fi
 
-echo "📡 Step 1/5: スプレッドシートからデータ取得..."
+echo "📡 Step 1/6: スプレッドシートからデータ取得..."
 node scripts/fetch-sheets.js
 
 echo ""
-echo "📊 Step 2/5: ダッシュボード & カードHTML生成..."
+echo "🤖 Step 2/6: Gemini でAI要約を生成..."
+node scripts/summarize.js
+
+echo ""
+echo "📊 Step 3/6: ダッシュボード & カードHTML生成..."
 node scripts/generate-dashboard.js
 
 echo ""
-echo "🚀 Step 3/5: Surge.sh に公開..."
+echo "🚀 Step 4/6: Surge.sh に公開..."
 node scripts/deploy.js
 
 echo ""
-echo "📸 Step 4/5: カードごとにスクリーンショット撮影..."
+echo "📸 Step 5/6: カードごとにスクリーンショット撮影..."
 node scripts/screenshot.js
 
 echo ""
-echo "📤 Step 5/5: Slack に画像投稿..."
+echo "📤 Step 6/6: Slack に画像投稿..."
 node scripts/post-slack.js
 
 echo ""

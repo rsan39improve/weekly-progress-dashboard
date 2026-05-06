@@ -5,7 +5,7 @@
  *   - output/cards/{name}.html     ← Slack画像投稿用の個別カード（外部依存なし）
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 
 const data = JSON.parse(readFileSync('output/data.json', 'utf-8'));
 const { projects, fetchedAt } = data;
@@ -363,3 +363,107 @@ projects.forEach(p => {
   writeFileSync(`output/cards/${sanitizeFilename(p.project)}.html`, html, 'utf-8');
 });
 console.log(`✅ 個別カードHTMLを生成しました: output/cards/ （${projects.length}件）`);
+
+// ── サマリーカードHTML生成 ────────────────────────────────────────
+const summary = existsSync('output/summary.json')
+  ? JSON.parse(readFileSync('output/summary.json', 'utf-8'))
+  : { projectSummaries: [], weeklyTrend: '' };
+
+const summaryCardHtml = generateSummaryCardHtml(projects, summary, cardDate);
+writeFileSync('output/cards/_summary.html', summaryCardHtml, 'utf-8');
+console.log('✅ サマリーカードHTMLを生成しました: output/cards/_summary.html');
+
+// ── サマリーカードHTMLテンプレート ───────────────────────────────
+function generateSummaryCardHtml(projects, summary, date) {
+  const counts = { 順調: 0, 停滞: 0, 危険: 0 };
+  projects.forEach(p => {
+    if (p.status === '順調') counts['順調']++;
+    else if (p.status === '危険') counts['危険']++;
+    else counts['停滞']++;
+  });
+
+  const overallStatus = counts['危険'] > 0 ? '要対応あり' : counts['停滞'] > 0 ? '要注意' : '全体順調';
+  const overallColor  = counts['危険'] > 0 ? '#ef4444' : counts['停滞'] > 0 ? '#f59e0b' : '#22c55e';
+
+  const projectRows = sortProjects(projects).map(p => {
+    const t = getCardTheme(p.status);
+    const aiSummary = summary.projectSummaries.find(s => s.project === p.project)?.summary || '';
+    return `
+    <div style="padding:10px 0;border-bottom:1px solid #f1f5f9;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+        <span style="font-size:14px;">${t.emoji}</span>
+        <span style="font-size:14px;font-weight:700;color:#1e293b;">${safeHtml(p.project)}</span>
+        <span style="font-size:12px;color:#64748b;">担当: ${safeHtml(p.person)}</span>
+        <span style="margin-left:auto;background:${t.badgeBg};color:${t.badgeText};border:1px solid ${t.badgeBorder};border-radius:9999px;padding:2px 10px;font-size:11px;font-weight:700;">${t.label}</span>
+      </div>
+      ${aiSummary ? `<div style="font-size:12px;color:#475569;padding-left:24px;">→ ${safeHtml(aiSummary)}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>週次サマリー</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 640px;
+      font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', 'Meiryo', sans-serif;
+      background: #f1f5f9;
+    }
+    .card { width: 640px; background: white; border-left: 8px solid ${overallColor}; border-radius: 0 0 16px 16px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.10); }
+  </style>
+</head>
+<body>
+<div class="card">
+  <!-- ヘッダー -->
+  <div style="background:${overallColor};padding:18px 24px;display:flex;align-items:center;justify-content:space-between;">
+    <div>
+      <div style="color:rgba(255,255,255,0.8);font-size:11px;margin-bottom:3px;">📅 ${safeHtml(date)}</div>
+      <div style="color:white;font-size:20px;font-weight:900;">週次マネジメントサマリー</div>
+    </div>
+    <div style="background:white;border-radius:12px;padding:8px 16px;text-align:center;">
+      <div style="font-size:12px;font-weight:900;color:${overallColor};">${safeHtml(overallStatus)}</div>
+    </div>
+  </div>
+
+  <div style="padding:20px 24px;">
+
+    <!-- 進捗管理 -->
+    <div style="margin-bottom:18px;">
+      <div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:10px;">📊 進捗管理</div>
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1;background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:22px;font-weight:900;color:#15803d;">${counts['順調']}</div>
+          <div style="font-size:11px;color:#15803d;font-weight:700;">🟢 順調</div>
+        </div>
+        <div style="flex:1;background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:22px;font-weight:900;color:#92400e;">${counts['停滞']}</div>
+          <div style="font-size:11px;color:#92400e;font-weight:700;">🟡 停滞</div>
+        </div>
+        <div style="flex:1;background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:22px;font-weight:900;color:#991b1b;">${counts['危険']}</div>
+          <div style="font-size:11px;color:#991b1b;font-weight:700;">🔴 危険</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- プロジェクト状況 -->
+    <div style="margin-bottom:18px;">
+      <div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:6px;">📋 プロジェクト状況</div>
+      ${projectRows}
+    </div>
+
+    <!-- 今週の動向 -->
+    ${summary.weeklyTrend ? `
+    <div style="background:#f8fafc;border-left:3px solid ${overallColor};border-radius:0 8px 8px 0;padding:12px 14px;">
+      <div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:6px;">📌 今週の動向</div>
+      <div style="font-size:13px;color:#334155;line-height:1.8;">${safeHtmlWithBreaks(summary.weeklyTrend)}</div>
+    </div>` : ''}
+
+  </div>
+</div>
+</body>
+</html>`;
+}

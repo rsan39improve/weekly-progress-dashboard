@@ -38,15 +38,21 @@ jobs:
           GAS_URL: ${{ secrets.GAS_URL }}
         run: node scripts/fetch-sheets.js
 
-      # 6. ダッシュボードHTML・カード生成
+      # 6. GeminiでAI要約を生成
+      - name: AI要約生成
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: node scripts/summarize.js
+
+      # 7. ダッシュボードHTML・カード生成
       - name: ダッシュボード生成
         run: node scripts/generate-dashboard.js
 
-      # 7. カードのスクリーンショット撮影
+      # 8. カードのスクリーンショット撮影
       - name: スクリーンショット撮影
         run: node scripts/screenshot.js
 
-      # 8. Slackに画像投稿
+      # 9. Slackに画像投稿
       - name: Slack投稿
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

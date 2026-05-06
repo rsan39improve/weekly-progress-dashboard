@@ -12,6 +12,7 @@
     "run-all": "node scripts/fetch-sheets.js && node scripts/generate-dashboard.js && node scripts/deploy.js && node scripts/screenshot.js && node scripts/post-slack.js"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@slack/web-api": "^7.3.0",
     "dotenv": "^16.4.5",
     "playwright": "^1.44.0"

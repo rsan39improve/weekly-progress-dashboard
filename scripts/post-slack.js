@@ -77,8 +77,27 @@ if (!hasScreenshots) {
 // ── Slack クライアント初期化 ──────────────────────────────────────
 const slack = new WebClient(BOT_TOKEN);
 
-// ── サマリーを投稿 ────────────────────────────────────────────────
-console.log('📨 Slack にサマリーを投稿中...');
+// ── サマリーカード画像を1枚目に投稿 ──────────────────────────────
+const summaryImagePath = 'output/screenshots/_summary.png';
+if (existsSync(summaryImagePath)) {
+  console.log('📨 Slack にサマリーカードを投稿中...');
+  try {
+    await slack.files.uploadV2({
+      channel_id: CHANNEL_ID,
+      file: readFileSync(summaryImagePath),
+      filename: '_summary.png',
+      initial_comment: '📊 *週次マネジメントサマリー*',
+    });
+    console.log('   ✅ サマリーカード投稿完了');
+  } catch (err) {
+    console.error(`   ❌ サマリーカード投稿失敗: ${err.message}`);
+  }
+} else {
+  console.warn('⚠ サマリーカード画像が見つかりません。スキップします。');
+}
+
+// ── テキストサマリーを投稿 ────────────────────────────────────────
+console.log('📨 Slack にテキストサマリーを投稿中...');
 
 const summaryRes = await slack.chat.postMessage({
   channel: CHANNEL_ID,
