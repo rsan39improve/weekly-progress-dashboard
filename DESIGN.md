@@ -566,3 +566,37 @@ weekly-progress-dashboard/
 - **AIは要約と表現補助に絞る** — Gemini を構造化データのみに適用
 - **完全自動で動く** — GitHub Actions が毎週月曜8時（JST）に自動実行
 - **最初はテキスト投稿から** — 安定稼働を確認してから画像化
+
+---
+
+## 22. 実装フェーズ対応表（現状スコープ）
+
+> このセクションは、設計書（DESIGN.md）と実装の乖離を明示するためのものです。
+
+### Phase 1（完了）— 基本的な自動投稿
+
+| 機能 | 状態 | 実装場所 |
+|------|------|----------|
+| 入力フォーム（GitHub Pages） | ✅ 完了 | `docs/index.html` |
+| GAS によるデータ保存 | ✅ 完了 | `gas/コード.js` |
+| データ取得・フィルタリング | ✅ 完了 | `scripts/fetch-sheets.js` |
+| カードHTML生成 | ✅ 完了 | `scripts/generate-dashboard.js` |
+| Playwright スクリーンショット | ✅ 完了 | `scripts/screenshot.js` |
+| Slack 画像投稿 | ✅ 完了 | `scripts/post-slack.js` |
+| GitHub Actions 自動実行 | ✅ 完了 | `.github/workflows/weekly-report.yml` |
+
+### Phase 2（未実装）— AI・通知機能
+
+| 機能 | 状態 | 実装方針 |
+|------|------|----------|
+| 金曜リマインダー通知 | ❌ 未実装 | GASの時間トリガー または 別ワークフロー |
+| 未提出者の検知 | ❌ 未実装 | マスターシートとの照合が必要 |
+| AI要約・管理者コメント（Gemini） | ❌ 未実装 | `data.json` 取得後に `scripts/summarize.js` を追加 |
+| ルールベーススコアリング | ❌ 未実装 | `scripts/score.js` を追加 |
+
+### Phase 3（将来）— 分析・サマリー
+
+| 機能 | 状態 | 実装方針 |
+|------|------|----------|
+| 月次サマリー | ❌ 未実装 | 月初の別ワークフローで対応 |
+| 週次比較・トレンド表示 | ❌ 未実装 | スプレッドシートの複数行を参照する設計変更が必要 |
