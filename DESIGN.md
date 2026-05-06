@@ -1,7 +1,7 @@
 # 業務週次報告ツール — 設計書
 
-> 最終更新: 2026年4月
-> ステータス: 設計確定（実装前）
+> 最終更新: 2026年5月
+> ステータス: Phase 1 + AI要約機能 完成
 
 ---
 
@@ -571,7 +571,7 @@ weekly-progress-dashboard/
 
 ## 22. 実装フェーズ対応表（現状スコープ）
 
-> このセクションは、設計書（DESIGN.md）と実装の乖離を明示するためのものです。
+> このセクションは、設計書（DESIGN.md）と実装の対応関係を明示するためのものです。
 
 ### Phase 1（完了）— 基本的な自動投稿
 
@@ -579,19 +579,28 @@ weekly-progress-dashboard/
 |------|------|----------|
 | 入力フォーム（GitHub Pages） | ✅ 完了 | `docs/index.html` |
 | GAS によるデータ保存 | ✅ 完了 | `gas/コード.js` |
-| データ取得・フィルタリング | ✅ 完了 | `scripts/fetch-sheets.js` |
+| データ取得・フィルタリング（直近8日） | ✅ 完了 | `scripts/fetch-sheets.js` |
 | カードHTML生成 | ✅ 完了 | `scripts/generate-dashboard.js` |
 | Playwright スクリーンショット | ✅ 完了 | `scripts/screenshot.js` |
 | Slack 画像投稿 | ✅ 完了 | `scripts/post-slack.js` |
-| GitHub Actions 自動実行 | ✅ 完了 | `.github/workflows/weekly-report.yml` |
+| GitHub Actions 自動実行（月曜8:00 JST） | ✅ 完了 | `.github/workflows/weekly-report.yml` |
 
-### Phase 2（未実装）— AI・通知機能
+### Phase 1.5（完了）— AI要約・マネジメントサマリー
+
+| 機能 | 状態 | 実装場所 |
+|------|------|----------|
+| Gemini による各PJ一言要約生成 | ✅ 完了 | `scripts/summarize.js` |
+| Gemini による今週の動向生成 | ✅ 完了 | `scripts/summarize.js` |
+| AIサマリーカードHTML生成 | ✅ 完了 | `scripts/generate-dashboard.js` |
+| サマリーカードを1枚目に投稿 | ✅ 完了 | `scripts/post-slack.js` |
+| GEMINI_API_KEY の GitHub Secrets 登録 | ✅ 完了 | GitHub Secrets |
+
+### Phase 2（未実装）— 通知・検知機能
 
 | 機能 | 状態 | 実装方針 |
 |------|------|----------|
 | 金曜リマインダー通知 | ❌ 未実装 | GASの時間トリガー または 別ワークフロー |
 | 未提出者の検知 | ❌ 未実装 | マスターシートとの照合が必要 |
-| AI要約・管理者コメント（Gemini） | ❌ 未実装 | `data.json` 取得後に `scripts/summarize.js` を追加 |
 | ルールベーススコアリング | ❌ 未実装 | `scripts/score.js` を追加 |
 
 ### Phase 3（将来）— 分析・サマリー

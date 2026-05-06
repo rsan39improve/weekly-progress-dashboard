@@ -1,10 +1,11 @@
 # 週次進捗ダッシュボード
 
 チームメンバーが毎週末に入力した進捗を、月曜朝に自動でSlackへ画像レポートとして投稿するツールです。
+冒頭にAI（Gemini）が生成したマネジメントサマリーカードを投稿し、続いて各プロジェクトカードを投稿します。
 
 ---
 
-## 現在の実装スコープ（Phase 1 完了）
+## 現在の実装スコープ（完成版）
 
 ### ✅ 実装済み（今すぐ動く）
 
@@ -13,6 +14,8 @@
 | 入力フォーム | GitHub Pages で公開済み。スマホ・PCどこからでも入力可能 |
 | データ保存 | GAS がスプレッドシートに自動保存 |
 | データ取得 | GAS の doGet で Node.js がデータを取得 |
+| AI要約生成 | Gemini が各プロジェクトの一言要約と今週の動向を自動生成 |
+| AIサマリーカード | 全プロジェクトを1枚にまとめたマネジメント向け画像を生成 |
 | カード画像生成 | プロジェクトごとにHTMLカードをPlaywrightで撮影 |
 | Slack自動投稿 | 毎週月曜 8:00（JST）にGitHub Actionsが自動実行 |
 | 直近データ絞り込み | 8日以内のデータのみ投稿（古いデータを除外） |
@@ -23,23 +26,40 @@
 |------|--------|------|
 | 金曜リマインダー通知 | 高 | 金曜16時・18時半にSlackで入力を促す |
 | 未提出者の検知 | 高 | 提出がないプロジェクトをSlackで警告 |
-| AI要約・管理者コメント | 中 | Geminiで報告内容を要約し、コメントを自動生成 |
 | ルールベーススコアリング | 中 | 状況を点数化して判定を自動化 |
 | 月次サマリー | 低 | 月単位でのプロジェクト状況まとめ |
+
+---
+
+## Slackへの投稿イメージ
+
+```
+【1枚目】週次マネジメントサマリー（AIが自動生成）
+  ├ 全体ステータス（順調 / 要注意 / 要対応あり）
+  ├ 進捗管理：順調○件・停滞○件・危険○件
+  ├ 各プロジェクトのステータス + AI一言要約
+  └ 今週の動向（AIによる全体コメント）
+
+【2枚目以降】各プロジェクトカード（危険→停滞→順調の順）
+  ├ 担当者・ステータス
+  ├ 今週達成したタスク
+  ├ 課題・リスク
+  └ 来週のタスク
+```
 
 ---
 
 ## 全体の流れ
 
 ```
-【毎週金曜】担当者がブラウザでフォームに入力
+【毎週末】担当者がブラウザでフォームに入力
           ↓ Google Apps Script（GAS）でスプレッドシートに自動保存
-【毎週月曜】bash run.sh を1回実行
-  1. スプレッドシートからデータ取得
-  2. HTMLダッシュボード + プロジェクトカード生成
-  3. Surge.sh に公開（URL発行）
+【毎週月曜 8:00 JST】GitHub Actions が自動実行
+  1. スプレッドシートからデータ取得（直近8日以内）
+  2. Gemini API でAI要約を生成
+  3. HTMLダッシュボード + プロジェクトカード + サマリーカード生成
   4. カードごとにスクリーンショット撮影（Playwright）
-  5. Slackにレポート画像を投稿（Slack Bot API）
+  5. Slackにサマリー→各プロジェクトカード画像を投稿
 ```
 
 ---
@@ -61,7 +81,6 @@ npm -v
 
 1. Google スプレッドシートを新規作成
 2. **プロジェクト数分のシートを作成**（シート名 = プロジェクト名）
-   - 例: `Webサイトリニューアル` / `採用資料作成` / `社内研修動画制作`
 3. 各シートの **1行目にヘッダーを追加**（コピー&ペーストでOK）
 
 | A | B | C | D | E | F | G | H |
@@ -86,27 +105,7 @@ npm -v
 
 ---
 
-### Step 4 — 入力フォームの設定
-
-1. `output/mockup-form.html` をテキストエディタで開く
-2. 先頭付近の `GAS_URL` を Step 3 で取得したURLに書き換える
-
-```javascript
-const GAS_URL = 'https://script.google.com/macros/s/XXXXXXXXXX/exec';
-```
-
-3. `select` タグのプロジェクト一覧を実際のプロジェクト名に書き換える
-
-```html
-<option>Webサイトリニューアル</option>
-<option>採用資料作成</option>
-```
-
-4. HTMLファイルをチームメンバーに共有する（ファイルをダブルクリックでブラウザで開ける）
-
----
-
-### Step 5 — Slack Bot の設定
+### Step 4 — Slack Bot の設定
 
 **Slack Bot Token の取得:**
 
@@ -124,16 +123,17 @@ const GAS_URL = 'https://script.google.com/macros/s/XXXXXXXXXX/exec';
 
 ---
 
-### Step 6 — Surge.sh の設定
+### Step 5 — Gemini API キーの取得
 
-```bash
-# Surge.sh のアカウント作成（初回のみ）
-npx surge login
-```
+1. [https://aistudio.google.com](https://aistudio.google.com) にアクセス
+2. **「Get API key」** → **「Create API key」** をクリック
+3. 表示されたキー（`AIza...`）をコピー（後で使用）
+
+無料枠：1日1,500リクエスト・1分30リクエスト（週1回の実行では超えない）
 
 ---
 
-### Step 7 — .env ファイルの作成
+### Step 6 — .env ファイルの作成
 
 ```bash
 cp .env.example .env
@@ -145,12 +145,13 @@ cp .env.example .env
 GAS_URL=https://script.google.com/macros/s/XXXXXXXXXX/exec
 SLACK_BOT_TOKEN=xoxb-XXXXXXXXXXXX
 SLACK_CHANNEL_ID=C0123456789
-SURGE_DOMAIN=チーム名-progress   # 例: myteam-progress
+SURGE_DOMAIN=チーム名-progress
+GEMINI_API_KEY=AIzaXXXXXXXXXX
 ```
 
 ---
 
-### Step 8 — 依存パッケージのインストール
+### Step 7 — 依存パッケージのインストール
 
 ```bash
 npm install
@@ -159,11 +160,24 @@ npx playwright install chromium
 
 ---
 
+### Step 8 — GitHub Secrets の設定
+
+GitHubリポジトリの **Settings > Secrets and variables > Actions** に以下を登録:
+
+| Secret名 | 値 |
+|----------|----|
+| `GAS_URL` | GASのデプロイURL |
+| `SLACK_BOT_TOKEN` | Slack Bot Token（xoxb-...） |
+| `SLACK_CHANNEL_ID` | 投稿先チャンネルID |
+| `GEMINI_API_KEY` | Gemini API キー（AIza...） |
+
+---
+
 ## 毎週の使い方
 
-### 担当者（毎週金曜）
+### 担当者（毎週末）
 
-1. `output/mockup-form.html` をブラウザで開く
+1. 入力フォームURL（`https://rsan39improve.github.io/weekly-progress-dashboard/`）をブラウザで開く
 2. 各項目を入力して「報告を送信する」をクリック
 3. 「送信完了」が表示されれば完了
 
@@ -171,20 +185,21 @@ npx playwright install chromium
 
 通常は **GitHub Actions が毎週月曜 朝8:00（JST）に自動実行**するため、手動操作は不要です。
 
-手動で実行したい場合は以下のコマンドを使います：
+手動でテストしたい場合は各スクリプトを順番に実行：
+
+```bash
+node scripts/fetch-sheets.js      # データ取得
+node scripts/summarize.js         # AI要約生成
+node scripts/generate-dashboard.js # HTML生成
+node scripts/screenshot.js         # スクリーンショット撮影
+node scripts/post-slack.js         # Slack投稿
+```
+
+または一括実行（Surge.shデプロイを含む）：
 
 ```bash
 bash run.sh
 ```
-
-> **注意：** `run.sh` はローカル実行用のスクリプトです。Surge.sh へのデプロイ（Step 3）が含まれており、GitHub Actions のワークフローとは手順が異なります。Slack への投稿だけ確認したい場合は、Surge のステップでエラーが出ても後続の screenshot・post-slack は実行されません。その場合は各スクリプトを個別に実行してください：
->
-> ```bash
-> node scripts/fetch-sheets.js
-> node scripts/generate-dashboard.js
-> node scripts/screenshot.js
-> node scripts/post-slack.js
-> ```
 
 ---
 
@@ -193,26 +208,28 @@ bash run.sh
 ```
 weekly-progress-dashboard/
 ├── README.md                  ← この手順書
+├── DESIGN.md                  ← 詳細設計書
 ├── package.json
 ├── .env.example               ← 設定テンプレート
 ├── .env                       ← 実際の設定（Git管理外）
-├── run.sh                     ← 毎週月曜に実行する1コマンド
+├── run.sh                     ← ローカル手動実行スクリプト（6ステップ）
+├── docs/
+│   └── index.html             ← 入力フォーム（GitHub Pages で公開）
 ├── gas/
 │   └── コード.js              ← GASに貼るコード（doGet + doPost）
 ├── scripts/
 │   ├── fetch-sheets.js        ← スプレッドシートからデータ取得
-│   ├── generate-dashboard.js  ← HTMLダッシュボード + カード生成
-│   ├── deploy.js              ← Surge.sh に公開
+│   ├── summarize.js           ← Gemini APIでAI要約生成
+│   ├── generate-dashboard.js  ← HTMLカード・サマリーカード生成
+│   ├── deploy.js              ← Surge.sh に公開（ローカルのみ）
 │   ├── screenshot.js          ← プロジェクトカードごとに撮影
 │   └── post-slack.js          ← Slack Bot APIで画像投稿
 └── output/                    ← 生成ファイル（Git管理外）
-    ├── mockup-form.html        ← 入力フォーム（担当者が使う）
-    ├── mockup-slack.html       ← Slackレポートのイメージ確認用
-    ├── mockup-card.html        ← カードデザインの確認用
     ├── data.json               ← 取得したプロジェクトデータ
+    ├── summary.json            ← Geminiが生成したAI要約
     ├── dashboard.html          ← 生成されたダッシュボード
-    ├── cards/                  ← プロジェクトカードHTML（撮影用）
-    └── screenshots/            ← Slackに投稿する画像
+    ├── cards/                  ← プロジェクトカードHTML（_summary.htmlを含む）
+    └── screenshots/            ← Slackに投稿する画像（_summary.pngを含む）
 ```
 
 ---
@@ -223,9 +240,11 @@ weekly-progress-dashboard/
 |--------|--------|
 | `GAS_URL が設定されていません` | `.env` の `GAS_URL` を確認 |
 | `SLACK_BOT_TOKEN が設定されていません` | `.env` の `SLACK_BOT_TOKEN` を確認 |
-| Surge デプロイ失敗 | `npx surge login` でログインし直す |
+| `GEMINI_API_KEY が設定されていません` | `.env` の `GEMINI_API_KEY` を確認 |
+| Gemini 429エラー（Too Many Requests） | 無料枠の上限。1日リセット後に再実行 |
 | スクリーンショットが撮れない | `npx playwright install chromium` を再実行 |
-| フォームを送信しても記録されない | GASのデプロイURLが正しいか確認、GASのログを確認 |
+| フォームを送信しても記録されない | GASのデプロイURLが正しいか確認 |
+| GitHub Actionsがエラーになる | GitHub Secretsに全4項目が登録されているか確認 |
 
 ---
 
